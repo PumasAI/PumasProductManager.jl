@@ -53,6 +53,44 @@ $ julia +Pumas@2.6.1
 julia> using Pumas
 ```
 
+## VSCode Configuration
+
+This section covers the changes that previous Pumas Desktop users, as well as
+new users, will need to make.
+
+Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
+`Cmd+Shift+P` on macOS). Type in "Open User Settings (JSON)" and select the top
+result, which will open an editor window with your user configuration.
+
+Find, or add, the line that starts with `"julia.executablePath"` and change it
+to the `julia +Pumas@2.6.1`, or whichever version you installed in the previous
+section that you would like to use as your default.
+
+Find, or add, the line that starts with `"julia.additionalArgs"` and remove any
+Pumas-specific values from it.
+
+Find, or add, the line that starts with `julia.environmentPath` and set it to
+`"~/.julia/environments/Pumas@2.6.1"`, or whichever version you installed in
+the previous section.
+
+Find the lines that start with `"QUARTO_JULIA_PROJECT"`, `"QUARTO_JULIA"`, and
+`"QUARTONOTEBOOKRUNNER_EXEFLAGS"`. Remove these lines.
+
+> [!IMPORTANT]
+>
+> This file is a JSON file, so make sure that while removing or editing lines
+> you do not leave any trailing `,` in `{}`s or `[]`s.
+
+> [!NOTE]
+>
+> This is your User settings file, it is global. For each project that you
+> start you can have a local `.vscode/settings.json` file that overrides the
+> User settings. This is called Workspace settings. It is useful if you need to
+> run several different versions of Pumas products in different projects.
+> See [the official VSCode documentation](https://code.visualstudio.com/docs/configure/settings#_workspace-settings)
+> for details on using Workspace settings. Adjust the product versions that you
+> have set in your User settings within your Workspace settings.
+
 ## Managing products
 
 All of the `pumas` commands described below require `PumasProductManager` to
