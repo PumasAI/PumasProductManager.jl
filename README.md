@@ -20,7 +20,16 @@ Install `julia` via https://julialang.org/downloads/#install_julia and make
 sure that the first option is chosen, which installs the `juliaup` version
 manager. This is essential for the product manager to work.
 
-Next run the following command in a terminal window to install the product manager package:
+Next run one of the following commands in a terminal window to install the
+product manager package:
+
+**Windows Users**
+
+```
+julia --project=@PumasProductManager -i -e 'import Pkg; Pkg.add(url=\"https://github.com/PumasAI/PumasProductManager.jl\"); import PumasProductManager'
+```
+
+**macOS and Linux Users**
 
 ```
 julia --project=@PumasProductManager -i -e 'import Pkg; Pkg.add(url="https://github.com/PumasAI/PumasProductManager.jl"); import PumasProductManager'
