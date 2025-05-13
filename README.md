@@ -16,8 +16,7 @@ Pumas or DeepPumas. Currently supported versions of products are:
 
 ## Installation
 
-Install `julia` via https://julialang.org/downloads/#install_julia and make
-sure that the first option is chosen, which installs the `juliaup` version
+Install `julia` via https://julialang.org/install/, which installs the `juliaup` version
 manager. This is essential for the product manager to work.
 
 Next run one of the following commands in a terminal window to install the
