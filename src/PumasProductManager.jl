@@ -197,7 +197,14 @@ function _gather_package_specs(manifest_toml)
         if k in bundled_packages
             url = joinpath(products_path(), "packages", k)
             rev = string("v", entry["version"])
-            push!(specs, Dict("url" => url, "rev" => rev))
+            # NOTE: Some packages exist in both the private and public
+            # registries. We filter out those that do not have a matching tag
+            # in the bundled repos.
+            repo = Pkg.GitTools.LibGit2.GitRepo(url)
+            tag_list = Pkg.GitTools.LibGit2.tag_list(repo)
+            if rev in tag_list
+                push!(specs, Dict("url" => url, "rev" => rev))
+            end
         elseif haskey(entry, "repo-url")
             # It is a git rev package rather than a registered version.
             url = entry["repo-url"]
