@@ -3,12 +3,7 @@ using Test
 
 @testset "PumasProductManager" begin
     # NOTE: update whenever new versions are released.
-    expected_versions = [
-        "DeepPumas@0.8.0",
-        "DeepPumas@0.8.1",
-        "Pumas@2.6.0",
-        "Pumas@2.6.1",
-    ]
+    expected_versions = ["DeepPumas@0.8.0", "DeepPumas@0.8.1", "Pumas@2.6.0", "Pumas@2.6.1"]
 
     @testset "Version listing" begin
         io = IOBuffer()
@@ -38,15 +33,21 @@ using Test
                 end
 
                 for each in expected_versions
-                    dirs = [
-                        joinpath(DEPOT_PATH[1], "environments", each),
-                        joinpath(dir, each),
-                    ]
+                    dirs =
+                        [joinpath(DEPOT_PATH[1], "environments", each), joinpath(dir, each)]
                     for folder in dirs
                         contents = readdir(folder)
                         @test "Project.toml" in contents
                         @test "Manifest.toml" in contents
                     end
+                end
+
+                for each in expected_versions
+                    product, _ = split(each, "@"; limit = 2)
+                    file = joinpath(@__DIR__, "$product.jl")
+                    channel = "+$each"
+                    cmd = `julia $channel $file`
+                    @test contains(readchomp(cmd), ":success")
                 end
             end
         end
