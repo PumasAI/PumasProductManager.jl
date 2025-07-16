@@ -3,7 +3,13 @@ using Test
 
 @testset "PumasProductManager" begin
     # NOTE: update whenever new versions are released.
-    expected_versions = ["DeepPumas@0.8.0", "DeepPumas@0.8.1", "Pumas@2.6.0", "Pumas@2.6.1"]
+    expected_versions = [
+        "DeepPumas@0.8.0",
+        "DeepPumas@0.8.1",
+        "Pumas@2.6.0",
+        "Pumas@2.6.1",
+        "Pumas@2.7.0-prerelease",
+    ]
 
     @testset "Version listing" begin
         io = IOBuffer()
