@@ -65,44 +65,6 @@ $ julia +Pumas@2.6.1
 julia> using Pumas
 ```
 
-## VSCode Configuration
-
-This section covers the changes that previous Pumas Desktop users, as well as
-new users, will need to make.
-
-Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
-`Cmd+Shift+P` on macOS). Type in "Open User Settings (JSON)" and select the top
-result, which will open an editor window with your user configuration.
-
-Find, or add, the line that starts with `"julia.executablePath"` and change it
-to the `julia +Pumas@2.6.1`, or whichever version you installed in the previous
-section that you would like to use as your default.
-
-Find, or add, the line that starts with `"julia.additionalArgs"` and remove any
-Pumas-specific values from it.
-
-Find, or add, the line that starts with `julia.environmentPath` and set it to
-`"~/.julia/environments/Pumas@2.6.1"`, or whichever version you installed in
-the previous section.
-
-Find the lines that start with `"QUARTO_JULIA_PROJECT"`, `"QUARTO_JULIA"`, and
-`"QUARTONOTEBOOKRUNNER_EXEFLAGS"`. Remove these lines.
-
-> [!IMPORTANT]
->
-> This file is a JSON file, so make sure that while removing or editing lines
-> you do not leave any trailing `,` in `{}`s or `[]`s.
-
-> [!NOTE]
->
-> This is your User settings file, it is global. For each project that you
-> start you can have a local `.vscode/settings.json` file that overrides the
-> User settings. This is called Workspace settings. It is useful if you need to
-> run several different versions of Pumas products in different projects.
-> See [the official VSCode documentation](https://code.visualstudio.com/docs/configure/settings#_workspace-settings)
-> for details on using Workspace settings. Adjust the product versions that you
-> have set in your User settings within your Workspace settings.
-
 ## Managing products
 
 All of the `pumas` commands described below require `PumasProductManager` to
@@ -141,7 +103,7 @@ pkg> pumas init <product> [<path>]
 
 Tab completion is available for the product name as well as paths.
 
-This Initializes a new Pumas product installation at the provided path. Use `.`
+This initializes a new Pumas product installation at the provided path. Use `.`
 for the current path. The path cannot contain a `Project.toml` or
 `Manifest.toml` file already. When no path is provided then a global
 environment is created.
@@ -174,13 +136,6 @@ julia> exit()
 $ julia +Pumas@2.6.1 --project=my-project
 
 julia> using Pumas
-```
-
-Should you want to set this custom channel as the default then you can use the
-normal `juliaup default` command to do this:
-
-```plaintext
-$ juliaup default Pumas@2.6.1
 ```
 
 ### Updating the Pumas product manager
@@ -250,13 +205,88 @@ installed into.
 If you wish to uninstall `julia` itself please refer to the `juliaup`
 documentation itself for details.
 
+## Usage with VSCode
+
+### Changes for previous Pumas Desktop users
+
+This section covers the changes that previous Pumas Desktop users will need to make.
+
+Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
+`Cmd+Shift+P` on macOS). Type in "Open User Settings (JSON)" and select the top
+result, which will open an editor window with your user configuration.
+
+Find the lines that start with `"julia.executablePath"`, `"julia.additionalArgs"`,
+`"julia.environmentPath"`, `"QUARTO_JULIA_PROJECT"`, `"QUARTO_JULIA"`,
+and `"QUARTONOTEBOOKRUNNER_EXEFLAGS"`. Remove these lines.
+
+> [!IMPORTANT]
+>
+> This file is a JSON file, so make sure that while removing or editing lines
+> you do not leave any trailing `,` in `{}`s or `[]`s.
+
+### Overview
+
+VSCode distinguishes between two different scopes of settings,
+a global configuration (["user settings"](#https://code.visualstudio.com/docs/configure/settings#_user-settings))
+and a project-specific configuration (["workspace settings"](https://code.visualstudio.com/docs/configure/settings#_workspace-settings)).
+
+In the global configuration you can specify a default Pumas version,
+which can be overriden in each project by a project-specific configuration.
+Project-specific configurations are useful if you need to run several different versions
+of Pumas products in different projects.
+
+### Global Configuration
+
+Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
+`Cmd+Shift+P` on macOS). Type in "Open User Settings" and select "Preferences: Open User Settings",
+which will open an editor window with your user configuration.
+
+Set the "Julia: Executable Path" setting to `julia +Pumas@2.6.1`,
+or whichever installed version you would like to use as your default.
+
+Set the "Julia: Environment Path" setting to `"${userHome}/.julia/environments/Pumas@2.6.1"`,
+or whichever installed version you would like to use as your default.
+
+Optionally, execute
+
+```plaintext
+$ juliaup default Pumas@2.6.1
+```
+
+in the terminal,
+with `Pumas@2.6.1` replaced with whichever installed version you would like to use as your default,
+to ensure that running the `julia` command starts the default product version.
+
+### Project Configuration
+
+Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
+`Cmd+Shift+P` on macOS). Type in "Open Workspace Settings" and select "Preferences: Open Workspace Settings",
+which will open an editor window with your user configuration.
+Set the "Julia: Executable Path" setting to `julia +Pumas@2.6.1`,
+or whichever installed version you would like to use in the current project.
+
+Reopen the "command palette". Type in "Change Current Environment" and select "Julia: Change Current Environment",
+which will open a popup with different Julia environments.
+Select "Pumas@2.6.1", or whichever installed version you would like to use in the current project.
+
+Optionally, execute
+
+```plaintext
+$ juliaup override set Pumas@2.6.1
+```
+
+in the terminal in the project directory,
+with `Pumas@2.6.1` replaced with whichever installed version you would like to use in the current project,
+to ensure that running the `julia` command in the current project starts the product version used in the current project.
+
 ## Usage with Quarto
 
-If you've set your `juliaup` default channel to a specific product version then
-using it in a Quarto notebook should require no special setup. Just include
-`engine: julia` in your frontmatter to select the right engine.
+If you've set your `juliaup` channel to a specific product version,
+either with `juliaup default` or `juliaup override set`,
+then using it in a Quarto notebook should require no special setup. Just ensure to include
+`engine: julia` in your frontmatter to select the Julia-native engine.
 
-Should you have not set a default channel then you can specify the channel and
+Should you have not set a default product channel then you can specify the channel and
 project using the notebook's frontmatter as follows:
 
 ````qmd
@@ -270,4 +300,3 @@ julia:
 using Pumas
 ```
 ````
-
