@@ -47,6 +47,7 @@ DeepPumas@0.8.0
 DeepPumas@0.8.1
 Pumas@2.6.0
 Pumas@2.6.1
+Pumas@2.7.0-prerelease
 ```
 
 Then initialize any of the listed products to install them, for example:
