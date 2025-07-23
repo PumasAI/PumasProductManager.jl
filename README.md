@@ -28,8 +28,24 @@ product manager package:
 
 **Windows Users**
 
+The command you have to run depends on the terminal application you are using.
+
+In the Command Prompt (`cmd.exe`) you have to run:
+
+```shell
+julia --project=@PumasProductManager -i -e "import Pkg; Pkg.add(url=\"https://github.com/PumasAI/PumasProductManager.jl\"); import PumasProductManager"
 ```
+
+In the Windows Powershell (`powershell.exe`) you have to run:
+
+```shell
 julia --project=@PumasProductManager -i -e 'import Pkg; Pkg.add(url=\"https://github.com/PumasAI/PumasProductManager.jl\"); import PumasProductManager'
+```
+
+In the Powershell (`pwsh.exe`) you have to run:
+
+```shell
+julia --project=@PumasProductManager -i -e 'import Pkg; Pkg.add(url="https://github.com/PumasAI/PumasProductManager.jl"); import PumasProductManager'
 ```
 
 **macOS and Linux Users**
