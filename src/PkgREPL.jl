@@ -4,16 +4,25 @@ import ..PumasProductManager
 
 import Markdown: @md_str
 import Pkg
+import REPL
 
 # Completions:
 
 function complete_init(opts, partial, offset, index; hint::Bool = false)
-    # First argument is the product name, next argument is the path.
-    # TODO: maybe there's a better way to know this.
-    items = if offset == length("pumas init  ")
+    # Access the entire REPL line content to determine the current position
+    # within the completion context.
+    mi = Base.active_repl.mistate
+    content = REPL.LineEdit.content(mi)
+    parts = split(content)
+    parts = parts[3:end] # Remove the `pumas init`
+    filter!((!=)("--precompile"), parts) # Remove the `--precompile` option if present
+    filter!((!=)(partial), parts) # Also remove the current partial
+
+    # When there are no parts that means we are completing the product. If
+    # there are more then it's the folder path.
+    items = if length(parts) < 1
         PumasProductManager.products()
     else
-        # Scans the current partial completion for directories.
         cwd = pwd()
         start_dir = joinpath(cwd, dirname(partial))
         entries = [relpath(joinpath(start_dir, d), cwd) for d in readdir(start_dir)]
@@ -40,16 +49,21 @@ function _define_specs()
                List the available Pumas products and their versions.
                """,
     )
+
+    precompile_opt =
+        Pkg.REPLMode.OptionDeclaration([:name => "precompile", :api => :precompile => true])
+
     init_spec = Pkg.REPLMode.CommandSpec(
         name = "init",
         api = PumasProductManager.init,
         arg_count = 1 => 2,
-        should_splat = true,
+        should_splat = false,
+        option_spec = [precompile_opt],
         completions = complete_init,
         description = "initialize a new Pumas project",
         help = md"""
                ```plaintext
-               pkg> pumas init <product> [<path>]
+               pkg> pumas init [--precompile] <product> [<path>]
                ```
 
                Initialize a new Pumas product installation at the provided path.

@@ -27,8 +27,8 @@ using Test
                 cd(dir) do
                     withenv("JULIA_PKG_PRECOMPILE_AUTO" => "1") do
                         for each in expected_versions
-                            PumasProductManager.init(each)
-                            PumasProductManager.init(each, each)
+                            PumasProductManager.init([each]; precompile = true)
+                            PumasProductManager.init([each, each]; precompile = true)
                         end
                     end
                 end

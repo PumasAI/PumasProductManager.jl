@@ -3,6 +3,7 @@ module PumasProductManager
 # Imports:
 
 import Artifacts: @artifact_str
+import LazyArtifacts
 import Pkg
 import Scratch
 import TOML
@@ -104,7 +105,10 @@ end
 
 has_juliaup() = success(`juliaup --version`)
 
-function init(product::String, path::Union{String,Nothing} = nothing)
+function init(args::Vector{String}; precompile::Union{Bool,Nothing} = false)
+    product = get(args, 1, nothing)
+    path = get(args, 2, nothing)
+
     product in products() || error("invalid product: $product")
 
     # We require `juliaup` to be able to install multiple products that may
@@ -136,10 +140,10 @@ function init(product::String, path::Union{String,Nothing} = nothing)
     end
     @info "creating new `$product` project at `$path`."
 
-    install(product, path)
+    install(product, path; precompile)
 end
 
-function install(env::AbstractString, dst::AbstractString; force::Bool = false)
+function install(env::AbstractString, dst::AbstractString; force::Bool = false, precompile::Bool = false)
     if force && isdir(dst)
         rm(dst; force = true, recursive = true)
     end
@@ -179,9 +183,9 @@ function install(env::AbstractString, dst::AbstractString; force::Bool = false)
         juliaup_config = get(Dict{String,Any}, config_toml, "juliaup")
         channel = get(juliaup_config, "channel", nothing)
 
-        _pkg_add_operations(dir, specs, channel)
+        _pkg_add_operations(env, dir, specs, channel; precompile)
         _pin_package_versions(dir, project_deps)
-        _link_juliaup_channel(env, juliaup_config, channel)
+        _link_juliaup_channel(env, juliaup_config, channel; precompile)
 
         @info "finalizing product initialization."
         cp(dir, dst; force = true)
@@ -215,7 +219,7 @@ function _gather_package_specs(manifest_toml)
     return specs
 end
 
-function _pkg_add_operations(dir::String, specs, channel::String)
+function _pkg_add_operations(env::String, dir::String, specs, channel::String; precompile::Bool = false)
     # This runs `Pkg.add` on all the gathered `PackageSpec`s. It needs to
     # be done in the correct `julia` version as specified in the
     # environment's configuration.
@@ -252,8 +256,72 @@ function _pkg_add_operations(dir::String, specs, channel::String)
             )
         end
         @info "instantiating and precompiling product."
-        run(`$bin --startup-file=no --project=$dir $install_jl`)
+
+        # When the user sets `--precompile` we perform precompilation locally,
+        # otherwise we set the CPU target to `generic` and use the precompiled
+        # files that are downloaded via artifacts. The default is to use
+        # pre-built precompile files.
+        extra_args = String[]
+        if !precompile 
+            @info "setting CPU target to generic and using downloaded precompile files."
+            push!(extra_args, "--cpu-target=generic")
+            _download_precompile_files(env, bin)
+        end
+
+        run(`$bin --startup-file=no $(extra_args) --project=$dir $install_jl`)
     end
+end
+
+function _download_precompile_files(env::String, bin::Cmd, precompile::Bool)
+    # When the user as set precompilation to false (default) then we
+    # dynamically download the precompiled package files from the requested
+    # environment.
+    @info "downloading precompiled package files for `$env`."
+    path = _get_compiled_artifacts(env)
+    isnothing(path) && return
+
+    # Add the precompiled files to the depot's compiled directory.
+    compiled_dir = _get_compiled_dir(bin)
+
+    for (root, dirs, files) in walkdir(path)
+        for file in files
+            src = joinpath(root, file)
+
+            # Rather than copying files, read and write them to avoid any
+            # potential issues with file permissions, e.g. readonly.
+            content = read(src)
+            relfile = relpath(src, path)
+            dst = joinpath(compiled_dir, relfile)
+
+            # Don't overwrite existing files
+            if !isfile(dst)
+                mkpath(dirname(dst))
+                write(dst, content)
+            end
+        end
+    end
+end
+
+function _get_compiled_artifacts(env::String)
+    # Returns the path to the precompiled artifacts for the given environment.
+    # This is used to download the precompiled files when `precompile` is set
+    # to false.
+    artifact_name = "compiled-$env"
+    try
+        return @artifact_str artifact_name
+    catch error
+        @error "failed to find precompiled artifacts for `$env`." error
+        return nothing
+    end
+end
+
+function _get_compiled_dir(bin::Cmd)
+    # Returns the path to the precompiled artifacts for the given environment.
+    # This is used to download the precompiled files when `precompile` is set
+    # to false.
+    version = VersionNumber(replace(readchomp(`$bin --version`), "julia version " => ""))
+    depot = get(DEPOT_PATH, 1, joinpath(homedir(), ".julia"))
+    return joinpath(depot, "compiled", "v$(version.major).$(version.minor)")
 end
 
 function _pin_package_versions(dir::String, project_deps)
@@ -324,7 +392,8 @@ end
 function _link_juliaup_channel(
     env::String,
     juliaup_config,
-    channel::Union{String,Nothing} = nothing,
+    channel::Union{String,Nothing} = nothing;
+    precompile::Bool = false,
 )
     if !has_juliaup()
         @error "could not find `juliaup` in the system PATH. Skipping custom channel creation."
@@ -341,6 +410,12 @@ function _link_juliaup_channel(
             file = @__FILE__
             global_project = "@$env"
             extra_args = get(Vector{String}, juliaup_config, "extra_args")
+
+            # When using precompiled packages we need to use the generic CPU target.
+            if !precompile
+                push!(extra_args, "--cpu-target=generic")
+            end
+
             cmd =
                 isnothing(channel) ?
                 `juliaup link $env $file -- --project=$global_project $(extra_args)` :
@@ -362,7 +437,9 @@ end
 
 function _setup_ppm_channel()
     juliaup_config = Dict("extra_args" => ["-i", "-e", "import PumasProductManager"])
-    _link_juliaup_channel("PumasProductManager", juliaup_config)
+    # For the PPM package we always do precomplation rather than downloading
+    # pre-built package cache files.
+    _link_juliaup_channel("PumasProductManager", juliaup_config; precompile = true)
 end
 
 # Run as part of precompilation. When we update the package via `Pkg.update()`
