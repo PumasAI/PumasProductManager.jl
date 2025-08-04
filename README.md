@@ -5,12 +5,8 @@ Pumas or DeepPumas. Currently supported versions of products are:
 
 - `Pumas@2.6.0`
 - `Pumas@2.6.1`
-- `Pumas@2.7.0-prerelease`
 - `DeepPumas@0.8.0`
 - `DeepPumas@0.8.1`
-
-*Versions labelled as `prerelease` are considered preview releases and should
-not be used for production work. They are provided for testing purposes only.*
 
 > [!IMPORTANT]
 >
@@ -44,7 +40,6 @@ DeepPumas@0.8.0
 DeepPumas@0.8.1
 Pumas@2.6.0
 Pumas@2.6.1
-Pumas@2.7.0-prerelease
 ```
 
 Then initialize any of the listed products to install them, for example:

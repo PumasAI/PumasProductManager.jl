@@ -31,13 +31,15 @@ function _define_specs()
         short_name = "ls",
         api = PumasProductManager.list,
         arg_count = 0 => 0,
+        option_spec = [Pair{Symbol,Any}[:name=>"all", :api=>:all_products=>true]],
         description = "list available Pumas products",
         help = md"""
-               ```plaintext
-               pkg> pumas list
-               ```
+                   pumas [ls|list] [--all]
 
                List the available Pumas products and their versions.
+
+               All products (including preview releases not intended for production work)
+               can be listed by passing `--all`.
                """,
     )
     init_spec = Pkg.REPLMode.CommandSpec(
@@ -48,9 +50,7 @@ function _define_specs()
         completions = complete_init,
         description = "initialize a new Pumas project",
         help = md"""
-               ```plaintext
-               pkg> pumas init <product> [<path>]
-               ```
+                   pumas init <product> [<path>]
 
                Initialize a new Pumas product installation at the provided path.
                Use `.` for the current path. The path cannot contain a

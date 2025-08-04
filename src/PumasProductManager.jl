@@ -83,29 +83,28 @@ end
 # the user runs it when listing or initializing products.
 products_path()
 
-function products()
-    environment_path = joinpath(products_path(), "environments")
-    return readdir(environment_path)
+function products_environments_path()
+    return joinpath(products_path(), "environments")
 end
 
-function product_metadata()
-    ids = products()
-    return map(ids) do id
-        name, version = split(id, "@"; limit = 2)
-        return name, VersionNumber(version)
-    end
-end
-
-function list(io = stdout)
-    for (name, version) in sort(product_metadata())
-        println(io, "$name@$version") # TODO: better formatting.
+function list(io = stdout; all_products::Bool = false)
+    for product in readdir(products_environments_path())
+        name_version = split(product, '@'; limit = 2)
+        if length(name_version) != 2
+            @error "invalid product name" product
+        end
+        name = name_version[begin]
+        version = VersionNumber(name_version[end])
+        if all_products || (version.prerelease == () && version.build == ())
+            println(io, name, "@", version)
+        end
     end
 end
 
 has_juliaup() = success(`juliaup --version`)
 
 function init(product::String, path::Union{String,Nothing} = nothing)
-    product in products() || error("invalid product: $product")
+    isdir(products_environments_path(), product) || error("invalid product: ", product)
 
     # We require `juliaup` to be able to install multiple products that may
     # need different Julia versions.
