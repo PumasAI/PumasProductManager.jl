@@ -5,7 +5,7 @@ Pumas or DeepPumas. Currently supported versions of products are:
 
 - `Pumas@2.6.0`
 - `Pumas@2.6.1`
-- `Pumas@2.7.0-prerelease`
+- `Pumas@2.7.0`
 - `DeepPumas@0.8.0`
 - `DeepPumas@0.8.1`
 
@@ -44,21 +44,21 @@ DeepPumas@0.8.0
 DeepPumas@0.8.1
 Pumas@2.6.0
 Pumas@2.6.1
-Pumas@2.7.0-prerelease
+Pumas@2.7.0
 ```
 
 Then initialize any of the listed products to install them, for example:
 
 ```plaintext
-pkg> pumas init Pumas@2.6.1
+pkg> pumas init Pumas@2.7.0
 ```
 
-This will download and install all the required packages for Pumas 2.6.1 and
+This will download and install all the required packages for Pumas 2.7.0 and
 then precompile them. Once completed you can restart Julia with this newly
 installed version of Pumas with the following:
 
 ```plaintext
-$ julia +Pumas@2.6.1
+$ julia +Pumas@2.7.0
 
 julia> using Pumas
 ```
@@ -89,6 +89,7 @@ DeepPumas@0.8.0
 DeepPumas@0.8.1
 Pumas@2.6.0
 Pumas@2.6.1
+Pumas@2.7.0
 ```
 
 ### `init`ializing products
@@ -110,13 +111,13 @@ After running `init` you can then start using the product via the
 custom `juliaup` channel that is added, for example:
 
 ```plaintext
-pkg> pumas init Pumas@2.6.1
+pkg> pumas init Pumas@2.7.0
 
 [output skipped...]
 
 julia> exit()
 
-$ julia +Pumas@2.6.1
+$ julia +Pumas@2.7.0
 
 julia> using Pumas
 ```
@@ -125,13 +126,13 @@ If you specified a `path` when initializing then specify that with the
 `--project` flag:
 
 ```plaintext
-pkg> pumas init Pumas@2.6.1 my-project
+pkg> pumas init Pumas@2.7.0 my-project
 
 [output skipped...]
 
 julia> exit()
 
-$ julia +Pumas@2.6.1 --project=my-project
+$ julia +Pumas@2.7.0 --project=my-project
 
 julia> using Pumas
 ```
@@ -164,7 +165,7 @@ packages to a particular environment using the normal package manager `add`
 operation.
 
 ```plaintext
-julia +Pumas@2.6.1
+julia +Pumas@2.7.0
 
 pkg> add --preserve=all ExtraPackage
 ```
@@ -239,20 +240,20 @@ Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
 `Cmd+Shift+P` on macOS). Type in "Open User Settings" and select "Preferences: Open User Settings",
 which will open a window with your user configuration.
 
-Set the "Julia: Executable Path" setting to `julia +Pumas@2.6.1`,
+Set the "Julia: Executable Path" setting to `julia +Pumas@2.7.0`,
 or whichever installed version you would like to use as your default.
 
-Set the "Julia: Environment Path" setting to `"~/.julia/environments/Pumas@2.6.1"`,
+Set the "Julia: Environment Path" setting to `"~/.julia/environments/Pumas@2.7.0"`,
 or whichever installed version you would like to use as your default.
 
 Optionally, execute
 
 ```plaintext
-$ juliaup default Pumas@2.6.1
+$ juliaup default Pumas@2.7.0
 ```
 
 in the terminal,
-with `Pumas@2.6.1` replaced with whichever installed version you would like to use as your default,
+with `Pumas@2.7.0` replaced with whichever installed version you would like to use as your default,
 to ensure that running the `julia` command starts the default product version.
 
 ### Project Configuration
@@ -260,21 +261,21 @@ to ensure that running the `julia` command starts the default product version.
 Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
 `Cmd+Shift+P` on macOS). Type in "Open Workspace Settings" and select "Preferences: Open Workspace Settings",
 which will open a window with your user configuration.
-Set the "Julia: Executable Path" setting to `julia +Pumas@2.6.1`,
+Set the "Julia: Executable Path" setting to `julia +Pumas@2.7.0`,
 or whichever installed version you would like to use in the current project.
 
 Reopen the "command palette". Type in "Change Current Environment" and select "Julia: Change Current Environment",
 which will open a popup with different Julia environments.
-Select "Pumas@2.6.1", or whichever installed version you would like to use in the current project.
+Select "Pumas@2.7.0", or whichever installed version you would like to use in the current project.
 
 Optionally, execute
 
 ```plaintext
-$ juliaup override set Pumas@2.6.1
+$ juliaup override set Pumas@2.7.0
 ```
 
 in the terminal in the project directory,
-with `Pumas@2.6.1` replaced with whichever installed version you would like to use in the current project,
+with `Pumas@2.7.0` replaced with whichever installed version you would like to use in the current project,
 to ensure that running the `julia` command in the current project starts the product version used in the current project.
 
 ## Usage with Quarto

@@ -8,7 +8,7 @@ using Test
         "DeepPumas@0.8.1",
         "Pumas@2.6.0",
         "Pumas@2.6.1",
-        "Pumas@2.7.0-prerelease",
+        "Pumas@2.7.0",
     ]
 
     @testset "Version listing" begin
