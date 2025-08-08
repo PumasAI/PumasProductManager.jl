@@ -211,7 +211,7 @@ This section covers the changes that previous Pumas Desktop users will need to m
 
 Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
 `Cmd+Shift+P` on macOS). Type in "Open User Settings (JSON)" and select the top
-result, which will open an editor window with your user configuration.
+result, which will open a window with your user configuration.
 
 Find the lines that start with `"julia.executablePath"`, `"julia.additionalArgs"`,
 `"julia.environmentPath"`, `"QUARTO_JULIA_PROJECT"`, `"QUARTO_JULIA"`,
@@ -237,7 +237,7 @@ of Pumas products in different projects.
 
 Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
 `Cmd+Shift+P` on macOS). Type in "Open User Settings" and select "Preferences: Open User Settings",
-which will open an editor window with your user configuration.
+which will open a window with your user configuration.
 
 Set the "Julia: Executable Path" setting to `julia +Pumas@2.6.1`,
 or whichever installed version you would like to use as your default.
@@ -259,7 +259,7 @@ to ensure that running the `julia` command starts the default product version.
 
 Start VSCode and then open the "command palette" with `Ctrl+Shift+P` (or with
 `Cmd+Shift+P` on macOS). Type in "Open Workspace Settings" and select "Preferences: Open Workspace Settings",
-which will open an editor window with your user configuration.
+which will open a window with your user configuration.
 Set the "Julia: Executable Path" setting to `julia +Pumas@2.6.1`,
 or whichever installed version you would like to use in the current project.
 
