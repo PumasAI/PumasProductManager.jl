@@ -246,12 +246,14 @@ function _pkg_add_operations(dir::String, specs, channel::String)
                     Pkg.PackageSpec(; url = each["url"], rev = each["rev"])
                 end
 
-                Pkg.add(pkg_specs; preserve = Pkg.PRESERVE_ALL)
-                Pkg.pin(; all_pkgs = true)
+                withenv("JULIA_PKG_PRECOMPILE_AUTO" => false) do
+                    Pkg.add(pkg_specs; preserve = Pkg.PRESERVE_ALL)
+                    Pkg.pin(; all_pkgs = true)
+                end
                 """,
             )
         end
-        @info "instantiating and precompiling product."
+        @info "instantiating product."
         run(`$bin --startup-file=no --project=$dir $install_jl`)
     end
 end
