@@ -54,8 +54,9 @@ function _define_specs()
 
                Initialize a new Pumas product installation at the provided path.
                Use `.` for the current path. The path cannot contain a
-               `Project.toml` or `Manifest.toml` file. When no path is provided
-               then a global environment is created.
+               `Project.toml`, `Manifest.toml`, or `PackageBundler.toml` file
+               (but can contain other files, which will be preserved). When no
+               path is provided then a global environment is created.
 
                After running `init` you can then start using the product via the
                custom `juliaup` channel that is added, for example:

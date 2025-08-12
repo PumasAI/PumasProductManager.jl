@@ -131,6 +131,11 @@ function init(product::String, path::Union{String,Nothing} = nothing)
             error("path `$path` already contains a `Project.toml` file.")
         isfile(joinpath(path, "Manifest.toml")) &&
             error("path `$path` already contains a `Manifest.toml` file.")
+        isfile(joinpath(path, "PackageBundler.toml")) &&
+            error("path `$path` already contains a `PackageBundler.toml` file.")
+        if !isempty(readdir(path))
+            @info "initializing in existing directory with files. Project.toml, Manifest.toml, and PackageBundler.toml will be created."
+        end
     else
         mkpath(path)
     end
@@ -144,7 +149,6 @@ function install(env::AbstractString, dst::AbstractString; force::Bool = false)
         rm(dst; force = true, recursive = true)
     end
     mkpath(dst)
-    isempty(readdir(dst)) || error("directory must be empty")
 
     # Find the repo paths to all the bundled deps required by this environment.
     # They are later passed to a `Pkg.add` call run in the environment's
@@ -184,7 +188,17 @@ function install(env::AbstractString, dst::AbstractString; force::Bool = false)
         _link_juliaup_channel(env, juliaup_config, channel)
 
         @info "finalizing product initialization."
-        cp(dir, dst; force = true)
+        # Copy individual files to preserve existing files in the directory
+        for (root, _, files) in walkdir(dir)
+            for file in files
+                src = joinpath(root, file)
+                content = read(src, String)
+                relfile = relpath(src, dir)
+                _dst = joinpath(dst, relfile)
+                mkpath(dirname(_dst))
+                write(_dst, content)
+            end
+        end
     end
 end
 
