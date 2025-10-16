@@ -184,7 +184,7 @@ function install(env::AbstractString, dst::AbstractString; force::Bool = false)
         channel = get(juliaup_config, "channel", nothing)
 
         _pkg_add_operations(dir, specs, channel)
-        _pin_package_versions(dir, project_deps)
+        _pin_package_versions(dir, project_deps, channel)
         _link_juliaup_channel(env, juliaup_config, channel)
 
         @info "finalizing product initialization."
@@ -270,7 +270,7 @@ function _pkg_add_operations(dir::String, specs, channel::String)
     end
 end
 
-function _pin_package_versions(dir::String, project_deps)
+function _pin_package_versions(dir::String, project_deps, channel::Union{String,Nothing})
     manifest_file = joinpath(dir, "Manifest.toml")
     project_file = joinpath(dir, "Project.toml")
 
@@ -324,14 +324,36 @@ function _pin_package_versions(dir::String, project_deps)
         TOML.print(io, project_toml; sorted = true, by = project_sorter)
     end
 
-    function _project_resolve_hash(toml::Dict)
-        project = Pkg.Types.Project(toml)
-        return Pkg.Types.project_resolve_hash(project)
-    end
-    manifest_toml["project_hash"] = _project_resolve_hash(project_toml)
-
     open(manifest_file, "w") do io
         TOML.print(io, manifest_toml; sorted = true, by = project_sorter)
+    end
+
+    _update_project_hash(dir, channel)
+end
+
+function _update_project_hash(dir::String, channel::Union{String,Nothing})
+    mktempdir() do tmp
+        bin = isnothing(channel) ? Base.julia_cmd()[1] : `julia $("+$channel")`
+
+        update_hash_jl = joinpath(tmp, "update_hash.jl")
+        open(update_hash_jl, "w") do io
+            println(
+                io,
+                """
+                pushfirst!(LOAD_PATH, "@stdlib")
+                import Pkg
+                popfirst!(LOAD_PATH)
+
+                project_file = ARGS[1]
+                env = Pkg.Types.EnvCache(project_file)
+                Pkg.Operations.record_project_hash(env)
+                Pkg.Types.write_env(env)
+                """,
+            )
+        end
+
+        project_file = joinpath(dir, "Project.toml")
+        run(`$bin --startup-file=no $update_hash_jl $project_file`)
     end
 end
 
