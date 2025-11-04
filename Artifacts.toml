@@ -1,6 +1,6 @@
 [PumasProductRegistry]
-git-tree-sha1 = "a01974d8170d32b657c9e63b06a531a5f0b46f85"
+git-tree-sha1 = "fe1100f6944de0d77eab0b8d41df8ba22602d3d0"
 
     [[PumasProductRegistry.download]]
-    sha256 = "a840cf4a19f047a995a582540ce369212b7e3ef94a21f5ff5e9a619aec981462"
-    url = "https://pumas-product-bundles.s3.us-east-1.amazonaws.com/bundle-00e0c6f701a771cc7ac200621344a280befa689d/PumasProductRegistry.tar.gz"
+    sha256 = "15cddf73578e454b65fed9a025743164b28eca9eaf3a1a05619f804e71cb21a9"
+    url = "https://pumas-product-bundles.s3.us-east-1.amazonaws.com/bundle-816d021822ebb2e7c0fb2e1394bdfc9b392eeccf/PumasProductRegistry.tar.gz"

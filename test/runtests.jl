@@ -9,6 +9,7 @@ using Test
         "Pumas@2.6.0",
         "Pumas@2.6.1",
         "Pumas@2.7.0",
+        "Pumas@2.7.1",
     ]
 
     @testset "Version listing" begin
@@ -25,7 +26,7 @@ using Test
         mktempdir() do dir
             cd(dir) do
                 # Test initialization in directory with existing files
-                test_version = "Pumas@2.7.0"
+                test_version = "Pumas@2.7.1"
                 test_dir = "test_non_empty"
 
                 # Create directory with existing files
@@ -68,7 +69,7 @@ using Test
     @testset "Error cases for existing Project/Manifest files" begin
         mktempdir() do dir
             cd(dir) do
-                test_version = "Pumas@2.7.0"
+                test_version = "Pumas@2.7.1"
 
                 @testset "Error on existing Project.toml" begin
                     test_dir = "test_existing_project"
