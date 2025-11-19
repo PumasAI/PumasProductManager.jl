@@ -6,6 +6,7 @@ using Test
     expected_versions = [
         "DeepPumas@0.8.0",
         "DeepPumas@0.8.1",
+        "DeepPumas@0.9.0",
         "Pumas@2.6.0",
         "Pumas@2.6.1",
         "Pumas@2.7.0",
