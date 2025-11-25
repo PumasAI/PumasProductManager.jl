@@ -3,21 +3,30 @@ using Test
 
 @testset "PumasProductManager" begin
     # NOTE: update whenever new versions are released.
-    expected_versions = [
+    all_versions = [
         "DeepPumas@0.8.0",
         "DeepPumas@0.8.1",
+        "DeepPumas@0.9.0",
         "Pumas@2.6.0",
         "Pumas@2.6.1",
         "Pumas@2.7.0",
         "Pumas@2.7.1",
     ]
 
+    # Filter to single product when running in CI matrix
+    test_product = get(ENV, "PPM_TEST_PRODUCT", nothing)
+    expected_versions = if isnothing(test_product)
+        all_versions
+    else
+        filter(v -> v == test_product, all_versions)
+    end
+
     @testset "Version listing" begin
         io = IOBuffer()
         PumasProductManager.list(io)
         list = String(take!(io))
 
-        for each in expected_versions
+        for each in all_versions
             @test contains(list, each)
         end
     end
