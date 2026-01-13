@@ -31,7 +31,7 @@ function products_path()
             # for any manifests that are re-resolved.
             if isdir(data)
                 rm(data; force = true, recursive = true)
-                _rm_stale_clones(data)
+                _rm_stale_clones(basename(dirname(scratch)))
             end
             _copy_contents(ppr, data)
             write(path, ppr)
@@ -45,7 +45,7 @@ function products_path()
     return data
 end
 
-function _rm_stale_clones(url_prefix::String)
+function _rm_stale_clones(identifier::String)
     for each in DEPOT_PATH
         clones = joinpath(each, "clones")
         if isdir(clones)
@@ -53,7 +53,7 @@ function _rm_stale_clones(url_prefix::String)
                 config = joinpath(repo, "config")
                 if isfile(config)
                     contents = read(config, String)
-                    if contains(contents, url_prefix)
+                    if contains(contents, identifier)
                         try
                             rm(repo; force = true, recursive = true)
                         catch error
