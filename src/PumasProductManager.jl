@@ -3,6 +3,7 @@ module PumasProductManager
 # Imports:
 
 import Artifacts: @artifact_str
+import JSON
 import Pkg
 import Scratch
 import TOML
@@ -79,6 +80,87 @@ function _copy_contents(from::String, to::String)
     end
 end
 
+function find_executables(names::Vector{String})
+    results = Dict{String,Vector{@NamedTuple{path::String, is_alias::Bool}}}()
+    for name in names
+        results[name] = []
+    end
+
+    pathsep = Sys.iswindows() ? ';' : ':'
+    exts = Sys.iswindows() ? ["", ".exe", ".cmd", ".bat"] : [""]
+
+    for dir in split(get(ENV, "PATH", ""), pathsep)
+        isempty(dir) && continue
+        try
+            isdir(dir) || continue
+        catch
+            continue
+        end
+
+        for name in names, ext in exts
+            exe = joinpath(dir, name * ext)
+            try
+                if isfile(exe)
+                    push!(results[name], (path = exe, is_alias = false))
+                end
+            catch e
+                # Windows App Execution Aliases throw EACCES on stat
+                if e isa Base.IOError
+                    push!(results[name], (path = exe, is_alias = true))
+                end
+            end
+        end
+    end
+
+    return results
+end
+
+function resolve_julialauncher_path()
+    exe_name = Sys.iswindows() ? "julia.exe" : "julia"
+
+    # Known juliaup installation locations for the launcher
+    launcher_dirs = [
+        joinpath(homedir(), ".juliaup", "bin"),
+        joinpath(get(ENV, "LOCALAPPDATA", ""), ".juliaup", "bin"),
+    ]
+
+    # Check known locations first
+    for dir in launcher_dirs
+        launcher = joinpath(dir, exe_name)
+        if try
+            isfile(launcher)
+        catch
+            false
+        end
+            return launcher
+        end
+    end
+
+    # Search PATH, preferring non-alias
+    found = find_executables(["julia"])
+    exes = get(found, "julia", [])
+
+    # Prefer non-alias (real binary) that's in a juliaup directory
+    for e in exes
+        if !e.is_alias && contains(e.path, ".juliaup")
+            return e.path
+        end
+    end
+
+    # Any non-alias
+    for e in exes
+        !e.is_alias && return e.path
+    end
+
+    # If only alias available, use it
+    if !isempty(exes)
+        return first(exes).path
+    end
+
+    # Last resort
+    return Sys.iswindows() ? "julia.exe" : "julia"
+end
+
 # Run it at compile time so that the data copying is already done by the time
 # the user runs it when listing or initializing products.
 products_path()
@@ -103,6 +185,29 @@ function list(io = stdout)
 end
 
 has_juliaup() = success(`juliaup --version`)
+
+function juliaup_version()
+    has_juliaup() || return nothing
+    output = try
+        read(`juliaup --version`, String)
+    catch
+        return nothing
+    end
+    m = match(r"[Jj]uliaup\s+(\d+)\.(\d+)\.(\d+)", output)
+    isnothing(m) && return nothing
+    return VersionNumber(parse(Int, m[1]), parse(Int, m[2]), parse(Int, m[3]))
+end
+
+supports_channel_aliases() = let v = juliaup_version(); !isnothing(v) && v >= v"1.18.0" end
+
+function juliaup_config()
+    has_juliaup() || return nothing
+    try
+        JSON.parse(read(`juliaup api getconfig1`, String))
+    catch
+        nothing
+    end
+end
 
 function init(product::String, path::Union{String,Nothing} = nothing)
     product in products() || error("invalid product: $product")
@@ -359,46 +464,117 @@ end
 
 function _link_juliaup_channel(
     env::String,
-    juliaup_config,
-    channel::Union{String,Nothing} = nothing,
+    juliaup_cfg,
+    channel::Union{String,Nothing} = nothing;
+    jc = nothing,
 )
     if !has_juliaup()
         @error "could not find `juliaup` in the system PATH. Skipping custom channel creation."
-    else
-        @info "configuring custom `juliaup` channel `+$env`."
-        juliaup_json = joinpath(dirname(dirname(Sys.BINDIR)), "juliaup.json")
-        if !isfile(juliaup_json)
-            @warn "Could not find `juliaup.json` config file. Skipping channel alias step."
-        else
-            if success(`juliaup rm $env`)
-                @info "removing existing channel alias."
-            end
+        return
+    end
 
-            file = @__FILE__
-            global_project = "@$env"
-            extra_args = get(Vector{String}, juliaup_config, "extra_args")
-            cmd =
-                isnothing(channel) ?
-                `juliaup link $env $file -- --project=$global_project $(extra_args)` :
-                `juliaup link $env $file -- $("+$channel") --project=$global_project $(extra_args)`
+    @info "configuring custom `juliaup` channel `+$env`."
+    if success(`juliaup rm $env`)
+        @info "removing existing channel alias."
+    end
+
+    global_project = "@$env"
+    extra_args = get(Vector{String}, juliaup_cfg, "extra_args")
+
+    if supports_channel_aliases()
+        # Use channel alias - fall back to default channel if none specified
+        target = if !isnothing(channel)
+            channel
+        else
+            config = isnothing(jc) ? juliaup_config() : jc
+            default = get(config, "DefaultChannel", nothing)
+            isnothing(default) ? nothing : get(default, "Name", nothing)
+        end
+        if !isnothing(target)
+            cmd = `juliaup link $env +$target -- --project=$global_project $extra_args`
             if !success(cmd)
                 @warn "failing to run juliaup linking, rerunning with output."
                 run(cmd)
             end
-
-            juliaup_json_raw = read(juliaup_json, String)
-            # `juliaup` will store the path with escaped `\`s in the json
-            # configuration. To correctly replace them with the text "julia" on
-            # Windows we need to match against the escaped version of the path.
-            escaped_file = @static Sys.iswindows() ? replace(file, "\\" => "\\\\") : file
-            write(juliaup_json, replace(juliaup_json_raw, escaped_file => "julia"))
+            return
         end
+    end
+
+    # Fallback to binary path (old juliaup or couldn't get default channel)
+    julia_path = resolve_julialauncher_path()
+    cmd =
+        isnothing(channel) ?
+        `juliaup link $env $julia_path -- --project=$global_project $(extra_args)` :
+        `juliaup link $env $julia_path -- $("+$channel") --project=$global_project $(extra_args)`
+    if !success(cmd)
+        @warn "failing to run juliaup linking, rerunning with output."
+        run(cmd)
     end
 end
 
+function _heal_juliaup_channels(jc)
+    # Check default channel
+    default = get(jc, "DefaultChannel", nothing)
+    !isnothing(default) && _maybe_heal_channel(default, jc)
+
+    # Check other channels
+    for channel in get(jc, "OtherChannels", [])
+        _maybe_heal_channel(channel, jc)
+    end
+end
+
+function _maybe_heal_channel(channel, jc)
+    name = get(channel, "Name", "")
+    # Only heal Pumas/DeepPumas/PumasProductManager channels
+    contains(name, "Pumas") || return
+
+    file = get(channel, "File", "")
+    args = get(channel, "Args", String[])
+
+    # Pre-1.19.4: catches aliases via marker
+    startswith(file, "alias-to-") && return
+
+    has_channel_arg = !isempty(args) && startswith(first(args), "+")
+    needs_heal = file in ("julia", "julia.exe")
+
+    # Only heal if broken (bare "julia") OR old format (+channel in args)
+    (needs_heal || has_channel_arg) || return
+
+    # Extract target channel from first arg if present (+channel is always first)
+    target_channel = has_channel_arg ? first(args)[2:end] : nothing
+    remaining_args = has_channel_arg ? args[2:end] : args
+
+    @info "healing juliaup channel `$name`"
+    run(`juliaup rm $name`)
+
+    if supports_channel_aliases()
+        # Migrate to alias format
+        # Use extracted channel or fall back to default
+        target = if !isnothing(target_channel)
+            target_channel
+        else
+            default = get(jc, "DefaultChannel", nothing)
+            isnothing(default) ? nothing : get(default, "Name", nothing)
+        end
+        if !isnothing(target)
+            run(`juliaup link $name +$target -- $remaining_args`)
+            return
+        end
+    end
+
+    # Fallback to binary path
+    julia_path = resolve_julialauncher_path()
+    run(`juliaup link $name $julia_path -- $args`)
+end
+
 function _setup_ppm_channel()
-    juliaup_config = Dict("extra_args" => ["-i", "-e", "import PumasProductManager"])
-    _link_juliaup_channel("PumasProductManager", juliaup_config)
+    jc = juliaup_config()
+    isnothing(jc) && return
+
+    _heal_juliaup_channels(jc)
+
+    juliaup_cfg = Dict("extra_args" => ["-i", "-e", "import PumasProductManager"])
+    _link_juliaup_channel("PumasProductManager", juliaup_cfg; jc)
 end
 
 # Run as part of precompilation. When we update the package via `Pkg.update()`

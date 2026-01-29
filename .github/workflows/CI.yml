@@ -52,6 +52,7 @@ jobs:
       - uses: julia-actions/install-juliaup@1da6847c869cd68e3a32b8f52fe8f005b8cd5ece # v2.2.1
         with:
           channel: "release"
+          internal-juliaup-version: "1.19.4"
 
       - uses: julia-actions/cache@d10a6fd8f31b12404a54613ebad242900567f2b9 # v2.1.0
 
