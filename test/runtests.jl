@@ -12,6 +12,7 @@ using Test
         "Pumas@2.6.1",
         "Pumas@2.7.0",
         "Pumas@2.7.1",
+        "Pumas@2.8.0",
     ]
 
     # Filter to single product when running in CI matrix
@@ -36,7 +37,7 @@ using Test
         mktempdir() do dir
             cd(dir) do
                 # Test initialization in directory with existing files
-                test_version = "Pumas@2.7.1"
+                test_version = "Pumas@2.8.0"
                 test_dir = "test_non_empty"
 
                 # Create directory with existing files
@@ -79,7 +80,7 @@ using Test
     @testset "Error cases for existing Project/Manifest files" begin
         mktempdir() do dir
             cd(dir) do
-                test_version = "Pumas@2.7.1"
+                test_version = "Pumas@2.8.0"
 
                 @testset "Error on existing Project.toml" begin
                     test_dir = "test_existing_project"
