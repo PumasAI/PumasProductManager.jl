@@ -116,6 +116,7 @@ function find_executables(names::Vector{String})
 end
 
 function resolve_julialauncher_path()
+    @info "ppm: resolve_julialauncher_path"
     exe_name = Sys.iswindows() ? "julia.exe" : "julia"
 
     # Known juliaup installation locations for the launcher
@@ -184,10 +185,14 @@ function list(io = stdout)
     end
 end
 
-has_juliaup() = success(`juliaup --version`)
+function has_juliaup()
+    @info "ppm: checking juliaup --version"
+    success(`juliaup --version`)
+end
 
 function juliaup_version()
     has_juliaup() || return nothing
+    @info "ppm: reading juliaup version"
     output = try
         read(`juliaup --version`, String)
     catch
@@ -202,6 +207,7 @@ supports_channel_aliases() = let v = juliaup_version(); !isnothing(v) && v >= v"
 
 function juliaup_config()
     has_juliaup() || return nothing
+    @info "ppm: reading juliaup api getconfig1"
     try
         JSON.parse(read(`juliaup api getconfig1`, String))
     catch
@@ -468,12 +474,13 @@ function _link_juliaup_channel(
     channel::Union{String,Nothing} = nothing;
     jc = nothing,
 )
+    @info "ppm: _link_juliaup_channel($env)"
     if !has_juliaup()
         @error "could not find `juliaup` in the system PATH. Skipping custom channel creation."
         return
     end
 
-    @info "configuring custom `juliaup` channel `+$env`."
+    @info "ppm: juliaup rm $env"
     if success(`juliaup rm $env`)
         @info "removing existing channel alias."
     end
@@ -481,6 +488,7 @@ function _link_juliaup_channel(
     global_project = "@$env"
     extra_args = get(Vector{String}, juliaup_cfg, "extra_args")
 
+    @info "ppm: checking channel alias support"
     if supports_channel_aliases()
         # Use channel alias - fall back to default channel if none specified
         target = if !isnothing(channel)
@@ -491,6 +499,7 @@ function _link_juliaup_channel(
             isnothing(default) ? nothing : get(default, "Name", nothing)
         end
         if !isnothing(target)
+            @info "ppm: juliaup link $env +$target (alias)"
             cmd = `juliaup link $env +$target -- --project=$global_project $extra_args`
             if !success(cmd)
                 @warn "failing to run juliaup linking, rerunning with output."
@@ -501,7 +510,9 @@ function _link_juliaup_channel(
     end
 
     # Fallback to binary path (old juliaup or couldn't get default channel)
+    @info "ppm: resolving julia launcher path"
     julia_path = resolve_julialauncher_path()
+    @info "ppm: juliaup link $env $julia_path (binary fallback)"
     cmd =
         isnothing(channel) ?
         `juliaup link $env $julia_path -- --project=$global_project $(extra_args)` :
@@ -513,6 +524,7 @@ function _link_juliaup_channel(
 end
 
 function _heal_juliaup_channels(jc)
+    @info "ppm: _heal_juliaup_channels"
     # Check default channel
     default = get(jc, "DefaultChannel", nothing)
     !isnothing(default) && _maybe_heal_channel(default, jc)
@@ -521,10 +533,12 @@ function _heal_juliaup_channels(jc)
     for channel in get(jc, "OtherChannels", [])
         _maybe_heal_channel(channel, jc)
     end
+    @info "ppm: _heal_juliaup_channels done"
 end
 
 function _maybe_heal_channel(channel, jc)
     name = get(channel, "Name", "")
+    @info "ppm: _maybe_heal_channel($name)"
     # Only heal Pumas/DeepPumas/PumasProductManager channels
     contains(name, "Pumas") || return
 
@@ -568,18 +582,22 @@ function _maybe_heal_channel(channel, jc)
 end
 
 function _setup_ppm_channel()
+    @info "ppm: _setup_ppm_channel start"
     jc = juliaup_config()
-    isnothing(jc) && return
+    isnothing(jc) && (@info "ppm: no juliaup config, skipping"; return)
 
     _heal_juliaup_channels(jc)
 
     juliaup_cfg = Dict("extra_args" => ["-i", "-e", "import PumasProductManager"])
     _link_juliaup_channel("PumasProductManager", juliaup_cfg; jc)
+    @info "ppm: _setup_ppm_channel done"
 end
 
 function __init__()
     ccall(:jl_generating_output, Cint, ()) === Cint(1) && return
+    @info "ppm: __init__ start"
     _setup_ppm_channel()
+    @info "ppm: __init__ done"
 end
 
 include("PkgREPL.jl")
