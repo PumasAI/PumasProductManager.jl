@@ -577,10 +577,10 @@ function _setup_ppm_channel()
     _link_juliaup_channel("PumasProductManager", juliaup_cfg; jc)
 end
 
-# Run as part of precompilation. When we update the package via `Pkg.update()`
-# and precompilation is retriggered then we want the channel config to be
-# updated.
-_setup_ppm_channel()
+function __init__()
+    ccall(:jl_generating_output, Cint, ()) === Cint(1) && return
+    _setup_ppm_channel()
+end
 
 include("PkgREPL.jl")
 
