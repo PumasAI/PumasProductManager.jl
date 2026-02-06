@@ -488,17 +488,19 @@ function _link_juliaup_channel(
     global_project = "@$env"
     extra_args = get(Vector{String}, juliaup_cfg, "extra_args")
 
+    config = isnothing(jc) ? juliaup_config() : jc
+    default_ch = get(config, "DefaultChannel", nothing)
+    default_name = isnothing(default_ch) ? nothing : get(default_ch, "Name", nothing)
+
     @info "ppm: checking channel alias support"
     if supports_channel_aliases()
         # Use channel alias - fall back to default channel if none specified
         target = if !isnothing(channel)
             channel
         else
-            config = isnothing(jc) ? juliaup_config() : jc
-            default = get(config, "DefaultChannel", nothing)
-            isnothing(default) ? nothing : get(default, "Name", nothing)
+            isnothing(default_name) ? nothing : default_name
         end
-        if !isnothing(target)
+        if !isnothing(target) && target != env
             @info "ppm: juliaup link $env +$target (alias)"
             cmd = `juliaup link $env +$target -- --project=$global_project $extra_args`
             if !success(cmd)
@@ -509,7 +511,14 @@ function _link_juliaup_channel(
         end
     end
 
-    # Fallback to binary path (old juliaup or couldn't get default channel)
+    # Fallback to binary path (old juliaup or couldn't get default channel).
+    # Skip if channel resolves back to env — linking to the launcher with
+    # +env would resolve env → itself → infinite process spawning.
+    fallback_target = isnothing(channel) ? default_name : channel
+    if fallback_target == env
+        @warn "cannot configure channel `$env`: would create circular reference"
+        return
+    end
     @info "ppm: resolving julia launcher path"
     julia_path = resolve_julialauncher_path()
     @info "ppm: juliaup link $env $julia_path (binary fallback)"
@@ -554,6 +563,10 @@ function _maybe_heal_channel(channel, jc)
     # Only heal if broken (bare "julia") OR old format (+channel in args)
     (needs_heal || has_channel_arg) || return
 
+    default_name = let d = get(jc, "DefaultChannel", nothing)
+        isnothing(d) ? nothing : get(d, "Name", nothing)
+    end
+
     # Extract target channel from first arg if present (+channel is always first)
     target_channel = has_channel_arg ? first(args)[2:end] : nothing
     remaining_args = has_channel_arg ? args[2:end] : args
@@ -567,16 +580,25 @@ function _maybe_heal_channel(channel, jc)
         target = if !isnothing(target_channel)
             target_channel
         else
-            default = get(jc, "DefaultChannel", nothing)
-            isnothing(default) ? nothing : get(default, "Name", nothing)
+            isnothing(default_name) ? nothing : default_name
         end
-        if !isnothing(target)
+        if !isnothing(target) && target != name
             run(`juliaup link $name +$target -- $remaining_args`)
             return
         end
     end
 
-    # Fallback to binary path
+    # Fallback to binary path — skip if channel resolves back to itself,
+    # since linking to the launcher would create an infinite process loop.
+    fallback_target = if !isnothing(target_channel)
+        target_channel
+    else
+        default_name
+    end
+    if fallback_target == name
+        @warn "cannot heal channel `$name`: would create circular reference"
+        return
+    end
     julia_path = resolve_julialauncher_path()
     run(`juliaup link $name $julia_path -- $args`)
 end
