@@ -62,26 +62,26 @@ function _define_specs()
                custom `juliaup` channel that is added, for example:
 
                ```
-               pkg> pumas init Pumas@2.6.0
+               pkg> pumas init Pumas@2.8.0
 
                [...]
 
                julia> exit()
 
-               $ julia +Pumas@2.6.0
+               $ julia +Pumas@2.8.0
                ```
 
                If you specified a `path` when initializing then use
 
                ```
-               $ julia +Pumas@2.6.0 --project=.
+               $ julia +Pumas@2.8.0 --project=.
                ```
 
                Should you want to set this custom channel as the default then
                you can use the `juliaup default` command to do this:
 
                ```
-               $ juliaup default Pumas@2.6.0
+               $ juliaup default Pumas@2.8.0
                ```
                """,
     )
