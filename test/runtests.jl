@@ -474,7 +474,7 @@ using Test
         mktempdir() do dir
             @testset "Installation" begin
                 cd(dir) do
-                    withenv("JULIA_PKG_PRECOMPILE_AUTO" => "1") do
+                    withenv("JULIA_PKG_PRECOMPILE_AUTO" => "0") do
                         for each in expected_versions
                             PumasProductManager.init(each)
                             PumasProductManager.init(each, each)
