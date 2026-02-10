@@ -413,7 +413,7 @@ using Test
                     @test default["Args"] == ["--project=@TestPumasHealDflt"]
 
                     # Clean up
-                    run(`juliaup default release`)
+                    run(`juliaup default 1.11`)
                     run(`juliaup rm TestPumasHealDflt`)
                 end
 
@@ -436,7 +436,7 @@ using Test
                     @test startswith(default["File"], "alias-to-") || isfile(default["File"])
 
                     # Clean up
-                    run(`juliaup default release`)
+                    run(`juliaup default 1.11`)
                     run(`juliaup rm TestPumasDflt`)
                 end
 
