@@ -1,5 +1,3 @@
-using Pumas
-
-@model begin end
+using PumasLicenseManager
 
 @show :success
