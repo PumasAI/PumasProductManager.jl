@@ -468,6 +468,14 @@ function _is_default_channel(name::AbstractString, jc)
     return get(default, "Name", "") == name
 end
 
+function _find_temp_default(name::AbstractString, jc)
+    for ch in get(jc, "OtherChannels", [])
+        ch_name = get(ch, "Name", "")
+        ch_name != name && !contains(ch_name, "Pumas") && return ch_name
+    end
+    return nothing
+end
+
 function _link_juliaup_channel(
     env::String,
     juliaup_cfg,
@@ -482,9 +490,13 @@ function _link_juliaup_channel(
     @info "configuring custom `juliaup` channel `+$env`."
 
     config = isnothing(jc) ? juliaup_config() : jc
-    was_default = !isnothing(config) && _is_default_channel(env, config)
-    if was_default
-        run(`juliaup default release`)
+    temp_default = if !isnothing(config) && _is_default_channel(env, config)
+        _find_temp_default(env, config)
+    else
+        nothing
+    end
+    if !isnothing(temp_default)
+        run(`juliaup default $temp_default`)
     end
     try
         if success(`juliaup rm $env`)
@@ -523,7 +535,7 @@ function _link_juliaup_channel(
             run(cmd)
         end
     finally
-        if was_default
+        if !isnothing(temp_default)
             run(`juliaup default $env`)
         end
     end
@@ -563,9 +575,13 @@ function _maybe_heal_channel(channel, jc)
 
     @info "healing juliaup channel `$name`"
 
-    was_default = _is_default_channel(name, jc)
-    if was_default
-        run(`juliaup default release`)
+    temp_default = if _is_default_channel(name, jc)
+        _find_temp_default(name, jc)
+    else
+        nothing
+    end
+    if !isnothing(temp_default)
+        run(`juliaup default $temp_default`)
     end
     try
         run(`juliaup rm $name`)
@@ -589,7 +605,7 @@ function _maybe_heal_channel(channel, jc)
         julia_path = resolve_julialauncher_path()
         run(`juliaup link $name $julia_path -- $args`)
     finally
-        if was_default
+        if !isnothing(temp_default)
             run(`juliaup default $name`)
         end
     end

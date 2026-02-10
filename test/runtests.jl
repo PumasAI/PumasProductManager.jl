@@ -440,6 +440,18 @@ using Test
                     run(`juliaup rm TestPumasDflt`)
                 end
 
+                @testset "_find_temp_default skips Pumas channels" begin
+                    jc = Dict(
+                        "DefaultChannel" => Dict("Name" => "Pumas@2.7.0"),
+                        "OtherChannels" => [
+                            Dict("Name" => "Pumas@2.6.0"),
+                            Dict("Name" => "DeepPumas@0.9.0"),
+                            Dict("Name" => "1.11"),
+                        ],
+                    )
+                    @test PPM._find_temp_default("Pumas@2.7.0", jc) == "1.11"
+                end
+
                 @testset "_setup_ppm_channel integration" begin
                     run(ignorestatus(`juliaup rm PumasProductManager`))
                     run(`juliaup add 1.11`)
