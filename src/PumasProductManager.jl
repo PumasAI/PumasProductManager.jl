@@ -462,6 +462,12 @@ function _update_project_hash(dir::String, channel::Union{String,Nothing})
     end
 end
 
+function _is_default_channel(name::AbstractString, jc)
+    default = get(jc, "DefaultChannel", nothing)
+    isnothing(default) && return false
+    return get(default, "Name", "") == name
+end
+
 function _link_juliaup_channel(
     env::String,
     juliaup_cfg,
@@ -474,41 +480,52 @@ function _link_juliaup_channel(
     end
 
     @info "configuring custom `juliaup` channel `+$env`."
-    if success(`juliaup rm $env`)
-        @info "removing existing channel alias."
+
+    config = isnothing(jc) ? juliaup_config() : jc
+    was_default = !isnothing(config) && _is_default_channel(env, config)
+    if was_default
+        run(`juliaup default release`)
     end
-
-    global_project = "@$env"
-    extra_args = get(Vector{String}, juliaup_cfg, "extra_args")
-
-    if supports_channel_aliases()
-        # Use channel alias - fall back to default channel if none specified
-        target = if !isnothing(channel)
-            channel
-        else
-            config = isnothing(jc) ? juliaup_config() : jc
-            default = get(config, "DefaultChannel", nothing)
-            isnothing(default) ? nothing : get(default, "Name", nothing)
+    try
+        if success(`juliaup rm $env`)
+            @info "removing existing channel alias."
         end
-        if !isnothing(target)
-            cmd = `juliaup link $env +$target -- --project=$global_project $extra_args`
-            if !success(cmd)
-                @warn "failing to run juliaup linking, rerunning with output."
-                run(cmd)
+
+        global_project = "@$env"
+        extra_args = get(Vector{String}, juliaup_cfg, "extra_args")
+
+        if supports_channel_aliases()
+            # Use channel alias - fall back to default channel if none specified
+            target = if !isnothing(channel)
+                channel
+            else
+                default = get(config, "DefaultChannel", nothing)
+                isnothing(default) ? nothing : get(default, "Name", nothing)
             end
-            return
+            if !isnothing(target)
+                cmd = `juliaup link $env +$target -- --project=$global_project $extra_args`
+                if !success(cmd)
+                    @warn "failing to run juliaup linking, rerunning with output."
+                    run(cmd)
+                end
+                return
+            end
         end
-    end
 
-    # Fallback to binary path (old juliaup or couldn't get default channel)
-    julia_path = resolve_julialauncher_path()
-    cmd =
-        isnothing(channel) ?
-        `juliaup link $env $julia_path -- --project=$global_project $(extra_args)` :
-        `juliaup link $env $julia_path -- $("+$channel") --project=$global_project $(extra_args)`
-    if !success(cmd)
-        @warn "failing to run juliaup linking, rerunning with output."
-        run(cmd)
+        # Fallback to binary path (old juliaup or couldn't get default channel)
+        julia_path = resolve_julialauncher_path()
+        cmd =
+            isnothing(channel) ?
+            `juliaup link $env $julia_path -- --project=$global_project $(extra_args)` :
+            `juliaup link $env $julia_path -- $("+$channel") --project=$global_project $(extra_args)`
+        if !success(cmd)
+            @warn "failing to run juliaup linking, rerunning with output."
+            run(cmd)
+        end
+    finally
+        if was_default
+            run(`juliaup default $env`)
+        end
     end
 end
 
@@ -545,26 +562,37 @@ function _maybe_heal_channel(channel, jc)
     remaining_args = has_channel_arg ? args[2:end] : args
 
     @info "healing juliaup channel `$name`"
-    run(`juliaup rm $name`)
 
-    if supports_channel_aliases()
-        # Migrate to alias format
-        # Use extracted channel or fall back to default
-        target = if !isnothing(target_channel)
-            target_channel
-        else
-            default = get(jc, "DefaultChannel", nothing)
-            isnothing(default) ? nothing : get(default, "Name", nothing)
+    was_default = _is_default_channel(name, jc)
+    if was_default
+        run(`juliaup default release`)
+    end
+    try
+        run(`juliaup rm $name`)
+
+        if supports_channel_aliases()
+            # Migrate to alias format
+            # Use extracted channel or fall back to default
+            target = if !isnothing(target_channel)
+                target_channel
+            else
+                default = get(jc, "DefaultChannel", nothing)
+                isnothing(default) ? nothing : get(default, "Name", nothing)
+            end
+            if !isnothing(target)
+                run(`juliaup link $name +$target -- $remaining_args`)
+                return
+            end
         end
-        if !isnothing(target)
-            run(`juliaup link $name +$target -- $remaining_args`)
-            return
+
+        # Fallback to binary path
+        julia_path = resolve_julialauncher_path()
+        run(`juliaup link $name $julia_path -- $args`)
+    finally
+        if was_default
+            run(`juliaup default $name`)
         end
     end
-
-    # Fallback to binary path
-    julia_path = resolve_julialauncher_path()
-    run(`juliaup link $name $julia_path -- $args`)
 end
 
 function _setup_ppm_channel()

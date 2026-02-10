@@ -392,6 +392,54 @@ using Test
                     run(`juliaup rm DeepPumas@0.9.0`)
                 end
 
+                @testset "healing: default channel with old-style format" begin
+                    run(`juliaup add 1.10`)
+                    julia_path = PPM.resolve_julialauncher_path()
+                    run(`juliaup link TestPumasHealDflt $julia_path -- +1.10 --project=@TestPumasHealDflt`)
+
+                    # Set as juliaup default
+                    run(`juliaup default TestPumasHealDflt`)
+                    config = PPM.juliaup_config()
+                    @test config["DefaultChannel"]["Name"] == "TestPumasHealDflt"
+
+                    # Heal while it's the default
+                    PPM._heal_juliaup_channels(config)
+
+                    # Verify healed and still the default
+                    config = PPM.juliaup_config()
+                    @test config["DefaultChannel"]["Name"] == "TestPumasHealDflt"
+                    default = config["DefaultChannel"]
+                    @test startswith(default["File"], "alias-to-") || isfile(default["File"])
+                    @test default["Args"] == ["--project=@TestPumasHealDflt"]
+
+                    # Clean up
+                    run(`juliaup default release`)
+                    run(`juliaup rm TestPumasHealDflt`)
+                end
+
+                @testset "_link_juliaup_channel when channel is juliaup default" begin
+                    juliaup_cfg = Dict("extra_args" => String[])
+                    PPM._link_juliaup_channel("TestPumasDflt", juliaup_cfg, "1.11")
+
+                    # Set as juliaup default
+                    run(`juliaup default TestPumasDflt`)
+                    config = PPM.juliaup_config()
+                    @test config["DefaultChannel"]["Name"] == "TestPumasDflt"
+
+                    # Re-link while it's the default
+                    PPM._link_juliaup_channel("TestPumasDflt", juliaup_cfg, "1.11"; jc = config)
+
+                    # Verify re-linked and still the default
+                    config = PPM.juliaup_config()
+                    @test config["DefaultChannel"]["Name"] == "TestPumasDflt"
+                    default = config["DefaultChannel"]
+                    @test startswith(default["File"], "alias-to-") || isfile(default["File"])
+
+                    # Clean up
+                    run(`juliaup default release`)
+                    run(`juliaup rm TestPumasDflt`)
+                end
+
                 @testset "_setup_ppm_channel integration" begin
                     run(ignorestatus(`juliaup rm PumasProductManager`))
                     run(`juliaup add 1.11`)
