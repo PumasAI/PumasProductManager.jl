@@ -617,8 +617,17 @@ function _setup_ppm_channel()
 
     _heal_juliaup_channels(jc)
 
+    # Ensure "release" exists so +PumasProductManager always aliases to a real channel,
+    # not another alias (juliaup rejects alias-to-alias).
+    all_channels = vcat(
+        filter(!isnothing, [get(jc, "DefaultChannel", nothing)]),
+        get(jc, "OtherChannels", []),
+    )
+    has_release = any(ch -> get(ch, "Name", "") == "release", all_channels)
+    has_release || run(`juliaup add release`)
+
     juliaup_cfg = Dict("extra_args" => ["-i", "-e", "import PumasProductManager"])
-    _link_juliaup_channel("PumasProductManager", juliaup_cfg; jc)
+    _link_juliaup_channel("PumasProductManager", juliaup_cfg, "release"; jc)
 end
 
 # Run as part of precompilation. When we update the package via `Pkg.update()`
