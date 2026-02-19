@@ -466,6 +466,24 @@ using Test
 
                     run(`juliaup rm PumasProductManager`)
                 end
+
+                @testset "_setup_ppm_channel when default is a Pumas alias" begin
+                    run(ignorestatus(`juliaup rm PumasProductManager`))
+                    run(`juliaup add 1.11`)
+                    run(`juliaup link Pumas@2.7.1 +1.11 -- --project=@Pumas@2.7.1`)
+                    run(`juliaup default Pumas@2.7.1`)
+                    try
+                        PPM._setup_ppm_channel()
+                        config = PPM.juliaup_config()
+                        ch = only(filter(c -> c["Name"] == "PumasProductManager", config["OtherChannels"]))
+                        @test startswith(ch["File"], "alias-to-") || isfile(ch["File"])
+                        @test ch["Args"] == ["--project=@PumasProductManager", "-i", "-e", "import PumasProductManager"]
+                    finally
+                        run(`juliaup default 1.11`)
+                        run(ignorestatus(`juliaup rm Pumas@2.7.1`))
+                        run(ignorestatus(`juliaup rm PumasProductManager`))
+                    end
+                end
             end
         end
     end
