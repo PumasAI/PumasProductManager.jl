@@ -172,10 +172,13 @@ end
 
 function product_metadata()
     ids = products()
-    return map(ids) do id
+    metadata = Tuple{SubString{String},VersionNumber}[]
+    for id in ids
         name, version = split(id, "@"; limit = 2)
-        return name, VersionNumber(version)
+        v = tryparse(VersionNumber, version)
+        isnothing(v) || push!(metadata, (name, v))
     end
+    return metadata
 end
 
 function list(io = stdout)
