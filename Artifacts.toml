@@ -1,6 +1,0 @@
-[PumasProductRegistry]
-git-tree-sha1 = "92f486284abb533e17ede2cbb9803c38b1dd628d"
-
-    [[PumasProductRegistry.download]]
-    sha256 = "ac9f26ea73d0d2f19702f610cf61fd9ec33cda05f7f63cd0d03c3ce04f7d15dc"
-    url = "https://pumas-product-bundles.s3.us-east-1.amazonaws.com/bundle-fdfbfadc3674996b94221e135db36f84b2b5fe58/PumasProductRegistry.tar.gz"
