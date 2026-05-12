@@ -82,9 +82,13 @@ jobs:
       #
 
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+        env:
+          LICENSESPRING_KEY: ${{ startsWith(matrix.product, 'DeepPumas') && secrets.LICENSESPRING_KEY_DEEPPUMAS || secrets.LICENSESPRING_KEY }}
 
       - name: Tests
         uses: julia-actions/julia-runtest@d60b785c6f2bdf4ebfb18b2b6f7d93b7dfb0efe3 # v1.11.4
+        env:
+          LICENSESPRING_KEY: ${{ startsWith(matrix.product, 'DeepPumas') && secrets.LICENSESPRING_KEY_DEEPPUMAS || secrets.LICENSESPRING_KEY }}
 
       #
       # License Cleanup:
