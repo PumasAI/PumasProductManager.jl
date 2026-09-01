@@ -1,1 +1,5 @@
 Manifest.toml
+
+# Products install by instantiating the manifest their environment ships, so
+# these are inputs rather than build output.
+!environments/*/Manifest.toml
