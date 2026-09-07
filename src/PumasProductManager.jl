@@ -2,82 +2,65 @@ module PumasProductManager
 
 # Imports:
 
-import Artifacts: @artifact_str
 import JSON
 import Pkg
-import Scratch
 import TOML
+
+const PUBLIC_REGISTRY_NAME = "PumasPublicRegistry"
+const PUBLIC_REGISTRY_URL = "https://github.com/PumasAI/PumasPublicRegistry"
+const PUBLIC_REGISTRY_UUID = Base.UUID("520a0f63-b2d4-4225-8b9a-7f2e3b94dc7e")
+
+const CONFLICTING_PRIVATE_REGISTRIES = [
+    (name = "PumasRegistry", uuid = Base.UUID("2207cf11-c0bb-4826-96c6-61cddfb0e7e8")),
+    (name = "JuliaHubRegistry", uuid = Base.UUID("de52bcdf-fcb2-40cf-a397-3d64b64f4d9c")),
+]
+
+const LICENSE_KEY_ENV_VAR = "LICENSESPRING_KEY"
+
+# Products record their licensing details under `[preferences.PumasLicenseManager]`
+# in the environment's `Project.toml`. These defaults are the ones
+# `PumasLicenseManager` itself falls back to when an environment sets none.
+const DEFAULT_LICENSE_APP_NAME = "Pumas"
+const DEFAULT_LICENSE_PRODUCT = "pumas"
 
 # Implmentation:
 
 function products_path()
-    ppr = artifact"PumasProductRegistry"
-
-    # Stores the artifacts in a scratch space. It does not change its path
-    # between artifact updates. This allows the resolved manifest files to
-    # remain valid between updates, otherwise paths to the old artifacts are
-    # embedded in manifest files and would become invalid after PPM updates.
-
-    scratch = Scratch.@get_scratch!("ppr")
-    path = joinpath(scratch, "path") # Tracks the previous artifact path.
-    data = joinpath(scratch, "data") # Contains the copied artifacts.
-
-    if isfile(path)
-        if read(path, String) == ppr
-            # This is the fast path.
-        else
-            # When the path is different then we remove the previous content
-            # any copy it over again. Additionally, we remove any clones that
-            # are in the depots that reference the path, which forces recloning
-            # for any manifests that are re-resolved.
-            if isdir(data)
-                rm(data; force = true, recursive = true)
-                _rm_stale_clones(basename(dirname(scratch)))
-            end
-            _copy_contents(ppr, data)
-            write(path, ppr)
-        end
-    else
-        # Otherwise copy the content and track the artifact path.
-        _copy_contents(ppr, data)
-        write(path, ppr)
-    end
-
-    return data
+    return joinpath(pkgdir(@__MODULE__), "environments")
 end
 
-function _rm_stale_clones(identifier::String)
-    for each in DEPOT_PATH
-        clones = joinpath(each, "clones")
-        if isdir(clones)
-            for repo in readdir(clones; join = true)
-                config = joinpath(repo, "config")
-                if isfile(config)
-                    contents = read(config, String)
-                    if contains(contents, identifier)
-                        try
-                            rm(repo; force = true, recursive = true)
-                        catch error
-                            @info "failed to remove clone" repo error
-                        end
-                    end
-                end
+function _ensure_public_registry()
+    existing = nothing
+    for reg in Pkg.Registry.reachable_registries()
+        for private in CONFLICTING_PRIVATE_REGISTRIES
+            if reg.uuid == private.uuid || reg.name == private.name
+                error(
+                    """
+                    The private `$(private.name)` registry is installed alongside `$PUBLIC_REGISTRY_NAME`.
+                    Their package UUIDs and versions overlap, so they cannot coexist in the same depot.
+
+                    Remove the private registry before using `PumasProductManager`:
+
+                        pkg> registry rm $(private.name)
+
+                    Then re-load `PumasProductManager`.
+                    """,
+                )
             end
         end
+        reg.uuid == PUBLIC_REGISTRY_UUID && (existing = reg)
     end
-end
-
-function _copy_contents(from::String, to::String)
-    for (root, _, files) in walkdir(from)
-        for file in files
-            src = joinpath(root, file)
-            content = read(src, String)
-            relfile = relpath(src, from)
-            dst = joinpath(to, relfile)
-            mkpath(dirname(dst))
-            write(dst, content)
-        end
+    if existing !== nothing
+        name_ok = existing.name == PUBLIC_REGISTRY_NAME
+        repo_ok = existing.repo isa AbstractString &&
+            contains(existing.repo, "PumasAI/PumasPublicRegistry")
+        (name_ok && repo_ok) && return
+        @warn "re-registering `$PUBLIC_REGISTRY_NAME` due to metadata drift" name = existing.name repo = existing.repo
+        Pkg.Registry.rm(Pkg.RegistrySpec(uuid = existing.uuid))
     end
+    @info "adding `$PUBLIC_REGISTRY_NAME` registry."
+    Pkg.Registry.add(Pkg.RegistrySpec(url = PUBLIC_REGISTRY_URL))
+    return
 end
 
 function find_executables(names::Vector{String})
@@ -161,13 +144,8 @@ function resolve_julialauncher_path()
     return Sys.iswindows() ? "julia.exe" : "julia"
 end
 
-# Run it at compile time so that the data copying is already done by the time
-# the user runs it when listing or initializing products.
-products_path()
-
 function products()
-    environment_path = joinpath(products_path(), "environments")
-    return readdir(environment_path)
+    return readdir(products_path())
 end
 
 function product_metadata()
@@ -212,7 +190,12 @@ function juliaup_config()
     end
 end
 
-function init(product::String, path::Union{String,Nothing} = nothing)
+function init(
+    product::String,
+    path::Union{String,Nothing} = nothing;
+    license_key::Union{AbstractString,Nothing} = nothing,
+    prompt::Bool = stdin isa Base.TTY,
+)
     product in products() || error("invalid product: $product")
 
     # We require `juliaup` to be able to install multiple products that may
@@ -249,28 +232,32 @@ function init(product::String, path::Union{String,Nothing} = nothing)
     end
     @info "creating new `$product` project at `$path`."
 
-    install(product, path)
+    install(product, path; license_key, prompt)
 end
 
-function install(env::AbstractString, dst::AbstractString; force::Bool = false)
-    if force && isdir(dst)
-        rm(dst; force = true, recursive = true)
-    end
-    mkpath(dst)
-
-    # Find the repo paths to all the bundled deps required by this environment.
-    # They are later passed to a `Pkg.add` call run in the environment's
-    # `julia` to resolve and precompile them.
-    env_dir = joinpath(products_path(), "environments", env)
+function install(
+    env::AbstractString,
+    dst::AbstractString;
+    force::Bool = false,
+    license_key::Union{AbstractString,Nothing} = nothing,
+    prompt::Bool = stdin isa Base.TTY,
+)
+    env_dir = joinpath(products_path(), env)
 
     project_file = joinpath(env_dir, "Project.toml")
     project_toml = TOML.parsefile(project_file)
     project_deps = project_toml["deps"]
 
-    manifest_file = joinpath(env_dir, "Manifest.toml")
-    manifest_toml = TOML.parsefile(manifest_file)
+    # Resolved up front, since the bundled packages cannot precompile without
+    # a license and that is the slowest part of the install.
+    license = _license_settings(project_toml)
+    resolved_key =
+        _resolve_license_key(license.app_name, license.product; license_key, prompt)
 
-    specs = _gather_package_specs(manifest_toml)
+    if force && isdir(dst)
+        rm(dst; force = true, recursive = true)
+    end
+    mkpath(dst)
 
     # Use a temporary directory to stage the changes prior to moving them into
     # the destination directory.
@@ -291,7 +278,7 @@ function install(env::AbstractString, dst::AbstractString; force::Bool = false)
         juliaup_config = get(Dict{String,Any}, config_toml, "juliaup")
         channel = get(juliaup_config, "channel", nothing)
 
-        _pkg_add_operations(dir, specs, channel)
+        _pkg_instantiate_operations(dir, channel, resolved_key)
         _pin_package_versions(dir, project_deps, channel)
         _link_juliaup_channel(env, juliaup_config, channel)
 
@@ -310,71 +297,122 @@ function install(env::AbstractString, dst::AbstractString; force::Bool = false)
     end
 end
 
-function _gather_package_specs(manifest_toml)
-    @info "locating required packages."
-    bundled_packages = Set(readdir(joinpath(products_path(), "packages")))
-    specs = Dict{String,String}[]
-    for (k, v) in manifest_toml["deps"]
-        entry = only(v)
-        if k in bundled_packages
-            url = joinpath(products_path(), "packages", k)
-            rev = string("v", entry["version"])
-            # NOTE: Some packages exist in both the private and public
-            # registries. We filter out those that do not have a matching tag
-            # in the bundled repos.
-            repo = Pkg.GitTools.LibGit2.GitRepo(url)
-            tag_list = Pkg.GitTools.LibGit2.tag_list(repo)
-            if rev in tag_list
-                push!(specs, Dict("url" => url, "rev" => rev))
-            end
-        elseif haskey(entry, "repo-url")
-            # It is a git rev package rather than a registered version.
-            url = entry["repo-url"]
-            rev = entry["repo-rev"]
-            push!(specs, Dict("url" => url, "rev" => rev))
-        end
-    end
-    return specs
+"""
+    MissingLicenseError(app_name)
+
+Raised when a product cannot be installed because no license key for it is
+available.
+"""
+struct MissingLicenseError <: Exception
+    app_name::String
 end
 
-function _pkg_add_operations(dir::String, specs, channel::String)
-    # This runs `Pkg.add` on all the gathered `PackageSpec`s. It needs to
-    # be done in the correct `julia` version as specified in the
-    # environment's configuration.
-    mktempdir() do tmp
-        specs_file = joinpath(tmp, "specs.toml")
-        open(specs_file, "w") do io
-            TOML.print(io, Dict("specs" => specs))
-        end
+function Base.showerror(io::IO, err::MissingLicenseError)
+    print(
+        io,
+        """
+        No $(err.app_name) license key found. The bundled packages are decrypted
+        during precompilation, so a key is needed to install the product.
 
+        Supply it in one of these ways:
+
+          * pass `license_key` to `PumasProductManager.init`,
+          * set the `$LICENSE_KEY_ENV_VAR` environment variable,
+          * run `init` interactively and type the key at the prompt.
+        """,
+    )
+end
+
+function _license_settings(project_toml)
+    preferences = get(Dict{String,Any}, project_toml, "preferences")
+    settings = get(Dict{String,Any}, preferences, "PumasLicenseManager")
+    return (
+        app_name = get(settings, "appName", DEFAULT_LICENSE_APP_NAME),
+        product = get(settings, "product", DEFAULT_LICENSE_PRODUCT),
+    )
+end
+
+# Where LicenseSpring stores a license once a device has activated it.
+function _license_cache_file(product::AbstractString)
+    root = if Sys.isapple()
+        joinpath(homedir(), "Library", "Application Support", "LicenseSpring")
+    elseif Sys.iswindows()
+        joinpath(homedir(), "AppData", "Local", "LicenseSpring")
+    else
+        joinpath(homedir(), ".LicenseSpring")
+    end
+    return joinpath(root, product, "License.key")
+end
+
+function _prompt_license_key(app_name::AbstractString, input::IO, output::IO)
+    print(output, "Enter $app_name license key: ")
+    flush(output)
+    return String(strip(readline(input)))
+end
+
+function _resolve_license_key(
+    app_name::AbstractString,
+    product::AbstractString;
+    license_key::Union{AbstractString,Nothing} = nothing,
+    prompt::Bool = stdin isa Base.TTY,
+    cache_file::AbstractString = _license_cache_file(product),
+)
+    for candidate in (license_key, get(ENV, LICENSE_KEY_ENV_VAR, ""))
+        key = _nonblank(candidate)
+        isnothing(key) || return key
+    end
+
+    # An activated device has its key cached, and the bundle loader reads that
+    # cache itself, so this install needs no key of its own.
+    isfile(cache_file) && return nothing
+
+    if prompt
+        key = _nonblank(_prompt_license_key(app_name, stdin, stdout))
+        isnothing(key) || return key
+    end
+
+    throw(MissingLicenseError(app_name))
+end
+
+_nonblank(::Nothing) = nothing
+
+function _nonblank(str::AbstractString)
+    stripped = strip(str)
+    return isempty(stripped) ? nothing : String(stripped)
+end
+
+function _pkg_instantiate_operations(
+    dir::String,
+    channel::Union{String,Nothing},
+    license_key::Union{String,Nothing},
+)
+    # Resolve the committed Manifest.toml under the environment's juliaup
+    # channel and pin every package so a later `Pkg.update` cannot drift.
+    mktempdir() do tmp
         isnothing(channel) || run(`juliaup add $channel`)
         bin = isnothing(channel) ? Base.julia_cmd()[1] : `julia $("+$channel")`
 
-        install_jl = joinpath(tmp, "install.jl")
-        open(install_jl, "w") do io
+        instantiate_jl = joinpath(tmp, "instantiate.jl")
+        open(instantiate_jl, "w") do io
             println(
                 io,
                 """
                 pushfirst!(LOAD_PATH, "@stdlib")
                 import Pkg
-                import TOML
                 popfirst!(LOAD_PATH)
 
-                specs_file = joinpath(@__DIR__, "specs.toml")
-                specs_toml = TOML.parsefile(specs_file)
-                specs = specs_toml["specs"]
-
-                pkg_specs = map(specs) do each
-                    Pkg.PackageSpec(; url = each["url"], rev = each["rev"])
-                end
-
-                Pkg.add(pkg_specs; preserve = Pkg.PRESERVE_ALL)
+                Pkg.activate(ARGS[1])
+                Pkg.instantiate()
                 Pkg.pin(; all_pkgs = true)
                 """,
             )
         end
         @info "instantiating and precompiling product."
-        run(`$bin --startup-file=no --project=$dir $install_jl`)
+        cmd = `$bin --startup-file=no $instantiate_jl $dir`
+        # The bundle loader takes the key from the environment when it decrypts
+        # bundled packages during precompilation.
+        isnothing(license_key) || (cmd = addenv(cmd, LICENSE_KEY_ENV_VAR => license_key))
+        run(cmd)
     end
 end
 
@@ -385,9 +423,8 @@ function _pin_package_versions(dir::String, project_deps, channel::Union{String,
     manifest_toml = TOML.parsefile(manifest_file)
     project_toml = TOML.parsefile(project_file)
 
-    # The `Pkg.add` step above has added all packages as direct
-    # dependencies, but there are some bundled deps that are not direct
-    # dependencies. This reverts them to indirect dependencies.
+    # Restore the env's original direct-dependency set in case the
+    # instantiate step has rewritten [deps].
     project_toml["deps"] = project_deps
 
     weakdeps = Dict{String,Any}()
@@ -636,6 +673,7 @@ end
 # Run as part of precompilation. When we update the package via `Pkg.update()`
 # and precompilation is retriggered then we want the channel config to be
 # updated.
+_ensure_public_registry()
 _setup_ppm_channel()
 
 include("PkgREPL.jl")

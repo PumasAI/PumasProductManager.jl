@@ -1,3 +1,23 @@
+import TOML
+
+# Every package a product environment installs is bundled, and a bundled
+# package decrypts its source during precompilation. That decryption is what
+# activates the license, so a cache entry surviving from an earlier run skips
+# the activation and leaves the product with no license to check against.
+function precompile_removals()
+    packages = Set(["PumasProductManager", "Pumas", "DeepPumas"])
+    environments = joinpath(@__DIR__, "..", "environments")
+    for env in readdir(environments, join = true)
+        project_file = joinpath(env, "Project.toml")
+        isfile(project_file) || continue
+        project = TOML.parsefile(project_file)
+        union!(packages, keys(get(Dict{String,Any}, project, "deps")))
+    end
+    return sort!(collect(packages))
+end
+
+const REMOVALS = precompile_removals()
+
 for depot in DEPOT_PATH
     clones = joinpath(depot, "clones")
     if isdir(clones)
@@ -12,10 +32,8 @@ for depot in DEPOT_PATH
     compiled = joinpath(depot, "compiled")
     if isdir(compiled)
         for version in readdir(compiled, join = true)
-            removals = ["PumasProductManager", "Pumas", "DeepPumas"]
-            for each in removals
+            for each in REMOVALS
                 path = joinpath(version, each)
-                @info "Checking compiled directory" path
                 if isdir(path)
                     try
                         rm(path, force = true, recursive = true)
