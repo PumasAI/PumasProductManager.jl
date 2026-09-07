@@ -58,6 +58,11 @@ function _define_specs()
                (but can contain other files, which will be preserved). When no
                path is provided then a global environment is created.
 
+               The product's packages are decrypted as they precompile, so a
+               license key is needed. It is read from the `LICENSESPRING_KEY`
+               environment variable, and requested at the prompt when that is
+               not set.
+
                After running `init` you can then start using the product via the
                custom `juliaup` channel that is added, for example:
 

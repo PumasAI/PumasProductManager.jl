@@ -19,22 +19,22 @@ julia --project=. -i -e 'using PumasProductManager'
 
 - **src/PumasProductManager.jl** - Main module: `products_path()`, `init()`, `install()`
 - **src/PkgREPL.jl** - Pkg REPL extension (`pumas list`, `pumas init`)
-- **Artifacts.toml** - PumasProductRegistry artifact definition
+- **environments/** - One directory per product version, holding the Project.toml, Manifest.toml and PackageBundler.toml it installs from
 - **test/runtests.jl** - Tests and supported product versions
 
 ## Key Concepts
 
-- Uses scratch spaces (`Scratch.@get_scratch!`) for stable artifact storage
+- Installs a product by instantiating the manifest its environment ships, resolved against PumasPublicRegistry
 - Pins all packages to exact versions to prevent accidental updates
 - Creates juliaup channels (e.g., `+Pumas@2.7.0`) for easy access
-- Requires `--preserve=all` when adding packages to product environments
+- Passes the license key to the instantiate subprocess in `LICENSESPRING_KEY`, since bundled packages are decrypted as they precompile
 
 ## Gotchas
 
-- **Compile-time execution**: `products_path()` and `_setup_ppm_channel()` run during precompilation. Changes require clearing precompile cache.
+- **Compile-time execution**: `_ensure_public_registry()` and `_setup_ppm_channel()` run during precompilation. Changes require clearing precompile cache.
 - **juliaup >= 1.18.0** required for channel aliases (`supports_channel_aliases()`)
 - **Windows**: App Execution Aliases throw EACCES on stat - handled specially in `find_executables()`
-- **Stale clones**: When artifact path changes, git clones in depot are auto-removed via `_rm_stale_clones()`
+- **Private registries**: PumasRegistry and JuliaHubRegistry overlap with PumasPublicRegistry, so loading the package errors until they are removed from the depot
 
 ## Testing
 
@@ -50,31 +50,7 @@ Tests create/cleanup juliaup channels. If tests fail mid-run, manual cleanup may
 
 ## Internal Functions
 
-- `_gather_package_specs()` - Finds bundled packages from manifest for installation
+- `_resolve_license_key()` - Finds the key the bundle loader needs, or throws `MissingLicenseError`
 - `_link_juliaup_channel()` - Creates juliaup channel aliases
 - `_heal_juliaup_channels()` - Fixes broken/old-style channels on precompilation
 - `resolve_julialauncher_path()` - Finds julia binary, handles Windows aliases
-
-## Local Registry Override
-
-Test with locally-built registries using Julia's artifact override mechanism.
-
-1. Download `PumasProductRegistry.zip` from CI build artifacts
-
-2. Extract:
-   ```bash
-   unzip PumasProductRegistry.zip -d /tmp/registry
-   cd /tmp/registry && tar -xzf PumasProductRegistry.tar.gz
-   ```
-
-3. Create `~/.julia/artifacts/Overrides.toml`:
-   ```toml
-   [aef49cb6-75a8-4add-8242-3d3875347889]
-   PumasProductRegistry = "/tmp/registry"
-   ```
-
-4. Clear precompile cache: `rm -rf ~/.julia/compiled/v1.*/PumasProductManager`
-
-5. Test: `julia --project=. -e 'using PumasProductManager; PumasProductManager.list()'`
-
-To remove: delete the section from Overrides.toml or set value to empty string.

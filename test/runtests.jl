@@ -3,6 +3,8 @@ import PumasProductManager
 using Test
 
 @testset "PumasProductManager" begin
+    include("license.jl")
+
     # NOTE: update whenever new versions are released.
     all_versions = [
         "DeepPumas@0.8.0",

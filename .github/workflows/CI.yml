@@ -65,38 +65,22 @@ jobs:
       - name: Ensure no LicenseSpring cache
         run: julia --startup-file=no --project=scripts scripts/remove_license_cache.jl
 
-      - name: Create Pumas license file
-        run: echo "${LICENSESPRING_KEY:?}" > ~/.julia/PumasLicense.txt
-        shell: bash
-        env:
-          LICENSESPRING_KEY: ${{ secrets.LICENSESPRING_KEY }}
-
-      - name: Create DeepPumas license file
-        run: echo "${LICENSESPRING_KEY:?}" > ~/.julia/DeepPumasLicense.txt
-        shell: bash
-        env:
-          LICENSESPRING_KEY: ${{ secrets.LICENSESPRING_KEY_DEEPPUMAS }}
-
       #
       # Testing:
       #
 
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+        env:
+          LICENSESPRING_KEY: ${{ startsWith(matrix.product, 'DeepPumas') && secrets.LICENSESPRING_KEY_DEEPPUMAS || secrets.LICENSESPRING_KEY }}
 
       - name: Tests
         uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271 # v1.12.0
+        env:
+          LICENSESPRING_KEY: ${{ startsWith(matrix.product, 'DeepPumas') && secrets.LICENSESPRING_KEY_DEEPPUMAS || secrets.LICENSESPRING_KEY }}
 
       #
       # License Cleanup:
       #
-      - run: rm -f ~/.julia/PumasLicense.txt
-        if: always()
-        shell: bash
-
-      - run: rm -f ~/.julia/DeepPumasLicense.txt
-        if: always()
-        shell: bash
-
       - name: Remove LicenseSpring cache
         run: julia --startup-file=no --project=scripts scripts/remove_license_cache.jl
         if: always()
