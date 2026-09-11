@@ -316,9 +316,9 @@ version = "0.1.6"
 
 [[deps.BundleLoader_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "LicenseSpring_jll", "Preferences"]
-git-tree-sha1 = "649dd295ed46cc394dea1320b8c9f6d0bb62f856"
+git-tree-sha1 = "3e0a608911c872d2f5ef654476d2db9958321abf"
 uuid = "1ad3e620-8996-5565-b8b0-a1489189912b"
-version = "0.1.0+0"
+version = "0.1.1+0"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
