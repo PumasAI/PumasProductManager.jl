@@ -390,9 +390,9 @@ weakdeps = ["ChainRulesCore", "ForwardDiff"]
 
 [[deps.BundleLoader_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "LicenseSpring_jll", "Preferences"]
-git-tree-sha1 = "3e0a608911c872d2f5ef654476d2db9958321abf"
+git-tree-sha1 = "b7bf8a54ad4b4873f8be60ed928f26c4d1605448"
 uuid = "1ad3e620-8996-5565-b8b0-a1489189912b"
-version = "0.1.1+0"
+version = "0.1.2+0"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
