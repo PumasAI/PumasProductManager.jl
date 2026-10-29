@@ -17,6 +17,7 @@ using Test
         "Pumas@2.7.1",
         "Pumas@2.8.0",
         "Pumas@2.8.1",
+        "Pumas@2.9.0",
     ]
 
     # Filter to single product when running in CI matrix
