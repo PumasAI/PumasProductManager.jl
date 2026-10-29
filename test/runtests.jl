@@ -4,6 +4,7 @@ using Test
 
 @testset "PumasProductManager" begin
     include("license.jl")
+    include("pin.jl")
 
     # NOTE: update whenever new versions are released.
     all_versions = [
