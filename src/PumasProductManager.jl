@@ -403,7 +403,9 @@ function _pkg_instantiate_operations(
 
                 Pkg.activate(ARGS[1])
                 Pkg.instantiate()
-                Pkg.pin(; all_pkgs = true)
+                # `all_pkgs = true` attaches each `[sources]` URL to its spec,
+                # and `pin` rejects a spec that carries a URL.
+                Pkg.pin([Pkg.PackageSpec(; dep.name, uuid) for (uuid, dep) in Pkg.dependencies()])
                 """,
             )
         end
