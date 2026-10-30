@@ -4,6 +4,7 @@ using Test
 
 @testset "PumasProductManager" begin
     include("license.jl")
+    include("pin.jl")
 
     # NOTE: update whenever new versions are released.
     all_versions = [
@@ -17,6 +18,7 @@ using Test
         "Pumas@2.7.1",
         "Pumas@2.8.0",
         "Pumas@2.8.1",
+        "Pumas@2.9.0",
     ]
 
     # Filter to single product when running in CI matrix

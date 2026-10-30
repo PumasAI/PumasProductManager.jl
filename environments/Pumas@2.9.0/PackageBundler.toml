@@ -1,0 +1,9 @@
+[juliaup]
+channel = "1.13.3"
+args = []
+
+[packages.extra]
+common = []
+
+[Pkg]
+pin = true
